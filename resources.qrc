@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/plugins/geosimulation_land_changes" >
+        <file>plugin_icon.png</file>
+    </qresource>
+</RCC>
