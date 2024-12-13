@@ -101,7 +101,7 @@ class GeosimulationLandChanges:
         text,
         callback,
         enabled_flag=True,
-        add_to_menu=True,
+        add_to_menu=False,
         add_to_toolbar=True,
         status_tip=None,
         whats_this=None,
@@ -210,7 +210,7 @@ class GeosimulationLandChanges:
         icon_path = ':/plugins/geosimulation_land_changes/plugin_icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Geosimulation Land Changes'),
+            text=self.tr(u'<b>Geosimulation Land Changes</b>'),
             callback=self.run,
             parent=self.iface.mainWindow())
 
