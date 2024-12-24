@@ -8,8 +8,8 @@
                               -------------------
         begin                : 2024-12-13
         git sha              : $Format:%H$
-        copyright            : (C) 2024 by Magister Teknik Geodesi dan Geomatika FITB - ITB
-        email                : tedyselan@gmail.com
+        copyright            : (C) 2024 by Albertus Deliar, Ananda Diva Victorya Gunawan, Elnurmas Zaetun Faesyari, Tedy Imanuel Selan
+        email                : albertus.deliar@gmail.com
  ***************************************************************************/
 
 /***************************************************************************
@@ -29,6 +29,7 @@ from qgis.gui import QgsFileWidget
 import numpy as np
 from osgeo import gdal
 import datetime
+import time
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -266,7 +267,9 @@ class GeosimulationLandChanges:
         # Open a file dialog to select a raster
         raster_layer = self.browse_raster_file()
         if raster_layer:
+            combobox.clear()
             combobox.addItem(raster_layer.name(), raster_layer)
+            combobox.setCurrentIndex(0)
             self.apply_color_ramp(raster_layer)
             self.iface.messageBar().pushMessage("Success", f"Loaded raster from file: {raster_layer.name()}", level=Qgis.Success)
         else:
@@ -330,7 +333,7 @@ class GeosimulationLandChanges:
             
             self.iface.mapCanvas().setExtent(raster_layer.extent())
             self.iface.mapCanvas().refresh()
-            self.iface.messageBar().pushMessage("Success", f"Color ramp applied to: {raster_layer.name()}", level=Qgis.Success)
+            # self.iface.messageBar().pushMessage("Success", f"Color ramp applied to: {raster_layer.name()}", level=Qgis.Success)
         else:
             self.iface.messageBar().pushMessage("Error", "Invalid raster layer.", level=Qgis.Critical)
 
@@ -343,13 +346,16 @@ class GeosimulationLandChanges:
             self.reference_required = True
 
             # Populate comboBox_3 with available rasters
-            self.populate_combobox_with_rasters(self.dlg.comboBox_3)
             self.dlg.toolButton_3.clicked.connect(lambda: self.handle_raster_input(self.dlg.comboBox_3))
+            self.populate_combobox_with_rasters(self.dlg.comboBox_3)
 
         else:
             self.dlg.toolButton_3.setEnabled(False)
             self.dlg.comboBox_3.setEnabled(False)
             self.reference_required = False
+
+            # Disconnect the signal to avoid multiple connections
+            self.dlg.toolButton_3.clicked.disconnect(lambda: self.handle_raster_input(self.dlg.comboBox_3))
 
     
     def handle_checkbox_2_state(self, state):
@@ -501,23 +507,23 @@ class GeosimulationLandChanges:
         out_dataset = None  # Close the dataset
         reference_dataset = None  # Close the reference dataset
 
-        if self.show_processed_output:
-            raster_layer = QgsRasterLayer(file_path, os.path.basename(file_path))
-            if raster_layer.isValid():
+        # Store the raster layer in the instance variable
+        self.predict_raster = QgsRasterLayer(file_path, os.path.basename(file_path))
+        if self.predict_raster.isValid():
+            if self.show_processed_output:
                 # Apply color ramp to the raster layer
-                self.apply_color_ramp(raster_layer)
+                self.apply_color_ramp(self.predict_raster)
 
                 # Add layers to QGIS project
-                QgsProject.instance().addMapLayer(raster_layer)
+                QgsProject.instance().addMapLayer(self.predict_raster)
                 self.iface.messageBar().pushMessage("Success", f"Predicted raster displayed in QGIS: {file_path}", level=Qgis.Success)
-                return raster_layer
             else:
-                self.iface.messageBar().pushMessage("Error", "Failed to load the processed raster file into QGIS.", level=Qgis.Critical)
-                return None
+                self.iface.messageBar().pushMessage("Success", f"Predicted raster saved successfully to: {file_path}", level=Qgis.Success)
         else:
-            self.iface.messageBar().pushMessage("Success", f"Predicted raster saved successfully to: {file_path}", level=Qgis.Success)
-            return None
-        
+            self.iface.messageBar().pushMessage("Error", "Failed to load the processed raster file into QGIS.", level=Qgis.Critical)
+            
+        return self.predict_raster
+
 
     def calculate_confusion_matrix(self, predict_matrix, reference_layer):
         prediction_array = np.array(predict_matrix)
@@ -694,6 +700,15 @@ class GeosimulationLandChanges:
 
 
     def load_data_and_calculate_prediction(self):
+        # start_time = time.time() #start timing
+
+        # Disable the button
+        self.dlg.pushButton_1.setEnabled(False)
+
+        # Initialize the progress bar
+        self.dlg.progressBar.setRange(0, 100)
+        self.dlg.progressBar.setValue(0)
+        
         # Load raster data
         raster_layer_1 = self.load_raster_from_combobox(self.dlg.comboBox_1)
         raster_layer_2 = self.load_raster_from_combobox(self.dlg.comboBox_2)
@@ -703,15 +718,27 @@ class GeosimulationLandChanges:
             self.iface.messageBar().pushMessage("Error", "One or both raster files are invalid!", level=Qgis.Critical)
             return
 
+        # Update progress bar
+        self.dlg.progressBar.setValue(1)
+
         # compare the dimensions, CRS, or different transformations of the two rasters
         compare_raster = self.compare_rasters(raster_layer_1, raster_layer_2)
         
+        # Update progress bar
+        self.dlg.progressBar.setValue(2)
+
         # Calculate cross tabulation
         cross_tabulation, unique_values_1, unique_values_2 = self.calculate_cross_tabulation(raster_layer_1, raster_layer_2)
+
+        # Update progress bar
+        self.dlg.progressBar.setValue(3)
 
         # Calculate probability matrix
         probability_matrix = self.calculate_probability_matrix(cross_tabulation)
         
+        # Update progress bar
+        self.dlg.progressBar.setValue(5)
+
         # Save the predict_matrix to a raster file
         file_path = self.dlg.mQgsFileWidget.filePath()
         if not file_path:
@@ -736,11 +763,14 @@ class GeosimulationLandChanges:
             for y in range(window_size // 2, predict_matrix.shape[1] - window_size // 2):
                 predict_matrix[x, y] = self.apply_cellular_automata_markov_chain(predict_matrix, probability_matrix, x, y, window_size)
                 step += 1
-                progress = (step / total_steps) * 100
+                progress = 5 + (step / total_steps) * 95
                 self.dlg.progressBar.setValue(int(progress))
 
         # Save the prediction matrix to a raster file
-        predict_raster = self.save_predict_matrix_to_raster(predict_matrix, raster_layer_2, file_path)
+        self.predict_raster = self.save_predict_matrix_to_raster(predict_matrix, raster_layer_2, file_path)
+
+        # Update progress bar after saving the prediction raster
+        self.dlg.progressBar.setValue(100)
 
         # Check the state of checkBox_1
         if not self.dlg.checkBox_1.isChecked():
@@ -771,6 +801,9 @@ class GeosimulationLandChanges:
             else:
                 self.iface.messageBar().pushMessage("Error", "Reference raster file is required!", level=Qgis.Critical)
 
+            # Update progress bar after validation
+            self.dlg.progressBar.setValue(95)
+
             # Save Metadata
             self.save_metadata_to_txt(
                 raster_layer_1,
@@ -778,7 +811,7 @@ class GeosimulationLandChanges:
                 window_size,
                 cross_tabulation,
                 probability_matrix,
-                predict_raster,
+                self.predict_raster,
                 predict_matrix=predict_matrix,
                 reference_layer=reference_layer,
                 confusion_matrix=confusion_matrix,
@@ -787,6 +820,7 @@ class GeosimulationLandChanges:
                 kappa_category=kappa_category,
                 file_path=metadata_file_path
                 )
+
         else:
             # Save Metadata
             self.save_metadata_to_txt(
@@ -795,14 +829,20 @@ class GeosimulationLandChanges:
                 window_size,
                 cross_tabulation,
                 probability_matrix,
-                predict_raster,
+                self.predict_raster,
                 file_path=metadata_file_path
                 )
             self.iface.messageBar().pushMessage("Info", "No reference raster selected, skip validate the prediction result.", level=Qgis.Info)
 
         # Reset the progress bar after completion
         self.dlg.progressBar.setValue(100)
+        self.dlg.pushButton_1.setEnabled(True)
         self.dlg.close()
+
+        # Print the total time taken for the process
+        # end_time = time.time()  # End timing
+        # total_time = end_time - start_time
+        # QMessageBox.information(self.dlg, "Processing Time", f"Total processing time: {total_time:.2f} seconds")
 
 
     def run(self):

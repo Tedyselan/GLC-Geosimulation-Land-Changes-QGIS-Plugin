@@ -23,7 +23,7 @@ hasProcessingProvider=no
 # changelog=
 
 # Tags are comma separated with spaces allowed
-tags=cellular automata, geosimulation, land cover prediction, land use prediction, spatial modeling
+tags=cellular automata, geosimulation, land use/land cover prediction, markov chain, spatial modeling
 
 homepage=https://github.com/Tedyselan/GLC-Geosimulation-Land-Changes-QGIS-Plugin.git
 category=Plugins
@@ -40,7 +40,7 @@ deprecated=False
 # plugin_dependencies=
 
 Category of the plugin: Raster, Vector, Database or Web
-# category=
+# category= Raster
 
 # If the plugin can run on QGIS Server.
 server=False

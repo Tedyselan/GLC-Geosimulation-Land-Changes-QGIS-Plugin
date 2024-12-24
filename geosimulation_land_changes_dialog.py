@@ -8,8 +8,8 @@
                              -------------------
         begin                : 2024-12-13
         git sha              : $Format:%H$
-        copyright            : (C) 2024 by Magister Teknik Geodesi dan Geomatika FITB - ITB
-        email                : tedyselan@gmail.com
+        copyright            : (C) 2024 by Albertus Deliar, Ananda Diva Victorya Gunawan, Elnurmas Zaetun Faesyari, Tedy Imanuel Selan
+        email                : albertus.deliar@gmail.com
  ***************************************************************************/
 
 /***************************************************************************
